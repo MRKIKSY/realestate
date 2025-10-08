@@ -1,0 +1,247 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>KINGSCAB — Direct Rent (Nigeria)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans">
+  <div class="max-w-4xl mx-auto py-10 px-4">
+    <header class="text-center mb-10">
+      <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-900">KINGSCAB — Rent Direct from Owner</h1>
+      <p class="text-gray-600 mt-3 max-w-2xl mx-auto">
+        <strong>Skip agency & inspection fees!</strong> Connect directly with verified landlords.
+        Landlords register properties with proof of ownership. Renters search verified listings below.
+      </p>
+    </header>
+
+    <!-- Landlord Registration Card -->
+    <section class="bg-white shadow-md rounded-2xl p-6 mb-10">
+      <h2 class="text-2xl font-bold text-indigo-800 mb-4">🏠 Landlord — Register Property</h2>
+
+      <form id="landlordForm" class="space-y-4">
+        <div>
+          <label class="font-medium">Property Title *</label>
+          <input name="title" id="title" required class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+        </div>
+
+        <div>
+          <label class="font-medium">Short Description *</label>
+          <textarea name="description" id="description" rows="3" required class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="font-medium">Monthly Rent (₦)</label>
+            <input name="rent" id="rent" type="number" class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+          </div>
+          <div>
+            <label class="font-medium">Location (City / Area)</label>
+            <input name="location" id="location" class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="font-medium">Owner Full Name *</label>
+            <input name="owner_name" id="owner_name" required class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+          </div>
+          <div>
+            <label class="font-medium">Owner Email *</label>
+            <input name="owner_email" id="owner_email" type="email" required class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+          </div>
+        </div>
+
+        <div>
+          <label class="font-medium">Owner Phone *</label>
+          <input name="owner_phone" id="owner_phone" required class="w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+        </div>
+
+        <div>
+          <label class="font-medium">Proof of Ownership (pdf / jpg / png)</label>
+          <input name="proofFile" id="proofFile" type="file" accept=".pdf,image/*" class="w-full border border-gray-300 rounded-md p-2" />
+        </div>
+
+        <div>
+          <label class="font-medium">Upload Property Pictures (multiple allowed)</label>
+          <input name="propertyImages" id="propertyImages" type="file" accept="image/*" multiple class="w-full border border-gray-300 rounded-md p-2" />
+        </div>
+
+        <div id="landlordMsg" class="text-sm font-medium"></div>
+
+        <div>
+          <button type="submit" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-md transition">Register Property</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Renters Search Section -->
+    <section class="bg-white shadow-md rounded-2xl p-6">
+      <h2 class="text-2xl font-bold text-indigo-800 mb-4">🔎 Renters — Search Listings</h2>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input id="searchQ" placeholder="Search by area, title or description" class="flex-grow border border-gray-300 rounded-md p-2 focus:ring focus:ring-indigo-200" />
+        <button id="btnSearch" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded-md transition">Search</button>
+      </div>
+      <div id="listings" class="mt-6 space-y-6"></div>
+    </section>
+  </div>
+
+<script>
+const API = "";
+
+async function fetchListings(q="") {
+  const url = API + "/api/listings" + (q ? "?q="+encodeURIComponent(q) : "");
+  const res = await fetch(url);
+  const data = await res.json();
+  const container = document.getElementById("listings");
+  container.innerHTML = "";
+  if (!data.length) {
+    container.innerHTML = "<p class='text-gray-500 italic'>No listings found.</p>";
+    return;
+  }
+
+  data.forEach(l => {
+    const div = document.createElement("div");
+    div.className = "border border-gray-200 rounded-xl shadow-sm p-4 hover:shadow-md transition";
+
+    const title = document.createElement("div");
+    title.innerHTML = `<h3 class='text-xl font-semibold text-indigo-900 mb-1'>${escapeHtml(l.title)}</h3>
+      ${l.is_verified ? '<span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-sm">✔ Verified</span>' : 
+      '<span class="text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-sm">Pending</span>'}`;
+
+    const meta = document.createElement("p");
+    meta.className = "text-gray-600 text-sm mt-1";
+    meta.innerHTML = `₦${l.rent ? Number(l.rent).toLocaleString() : 'N/A'} • ${escapeHtml(l.location || '')} • Contacts: ${l.contact_clicks || 0}`;
+
+    // Images
+   // --- Image Slider ---
+const imgDiv = document.createElement("div");
+imgDiv.className = "relative mt-3 w-full overflow-hidden rounded-lg";
+
+if (l.property_images) {
+  const imgs = l.property_images.split(",");
+  let current = 0;
+
+  const imgEl = document.createElement("img");
+  imgEl.src = `/uploads/${imgs[current]}`;
+  imgEl.className = "w-full h-56 object-cover rounded-lg transition-all duration-500";
+  imgDiv.appendChild(imgEl);
+
+  if (imgs.length > 1) {
+    // Prev / Next buttons
+    const prevBtn = document.createElement("button");
+    prevBtn.innerHTML = "&#10094;";
+    prevBtn.className = "absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-1 hover:bg-black/60";
+    const nextBtn = document.createElement("button");
+    nextBtn.innerHTML = "&#10095;";
+    nextBtn.className = "absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full p-1 hover:bg-black/60";
+
+    prevBtn.onclick = () => {
+      current = (current - 1 + imgs.length) % imgs.length;
+      imgEl.src = `/uploads/${imgs[current]}`;
+    };
+    nextBtn.onclick = () => {
+      current = (current + 1) % imgs.length;
+      imgEl.src = `/uploads/${imgs[current]}`;
+    };
+
+    imgDiv.appendChild(prevBtn);
+    imgDiv.appendChild(nextBtn);
+  }
+
+  // Small dots navigation
+  const dotsDiv = document.createElement("div");
+  dotsDiv.className = "absolute bottom-2 left-0 right-0 flex justify-center gap-2";
+  imgs.forEach((_, i) => {
+    const dot = document.createElement("span");
+    dot.className = "w-2.5 h-2.5 rounded-full bg-white/50 cursor-pointer";
+    dot.onclick = () => {
+      current = i;
+      imgEl.src = `/uploads/${imgs[current]}`;
+      updateDots();
+    };
+    dotsDiv.appendChild(dot);
+  });
+
+  const updateDots = () => {
+    dotsDiv.childNodes.forEach((d, i) => {
+      d.className = i === current
+        ? "w-2.5 h-2.5 rounded-full bg-white"
+        : "w-2.5 h-2.5 rounded-full bg-white/50 cursor-pointer";
+    });
+  };
+
+  updateDots();
+  imgDiv.appendChild(dotsDiv);
+} else {
+  imgDiv.innerHTML = "<p class='text-gray-400 text-sm italic'>No images uploaded</p>";
+}
+
+
+    const desc = document.createElement("p");
+    desc.className = "mt-2 text-gray-700";
+    desc.innerText = l.description || "";
+
+    const btn = document.createElement("button");
+    btn.textContent = "📲 Contact Owner via WhatsApp";
+    btn.className = "mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition";
+    btn.onclick = async () => {
+      const message = prompt("Write a short enquiry message:", `Hello, I'm enquiring about '${l.title}'. Please provide details.`);
+      if (!message) return;
+      try {
+        const resp = await fetch(`/api/enquiry/${l.id}`, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({message})
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          alert("Error: " + (err.error || "failed"));
+          return;
+        }
+        const payload = await resp.json();
+        window.open(payload.whatsapp_url, "_blank");
+      } catch {
+        alert("Network error");
+      }
+    };
+
+    div.appendChild(title);
+    div.appendChild(meta);
+    div.appendChild(imgDiv);
+    div.appendChild(desc);
+    div.appendChild(btn);
+    container.appendChild(div);
+  });
+}
+
+document.getElementById("btnSearch").onclick = () =>
+  fetchListings(document.getElementById("searchQ").value);
+
+document.getElementById("landlordForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const form = document.getElementById("landlordForm");
+  const formData = new FormData(form);
+  const resp = await fetch("/api/listings", { method: "POST", body: formData });
+  const msg = document.getElementById("landlordMsg");
+  if (!resp.ok) {
+    const err = await resp.json();
+    msg.innerHTML = `<p class='text-red-600 mt-2'>${err.error || "Failed to create listing"}</p>`;
+    return;
+  }
+  const data = await resp.json();
+  msg.innerHTML = `<p class='text-green-600 mt-2'>Property registered (ID ${data.listing_id}). Await verification by admin.</p>`;
+  form.reset();
+  fetchListings();
+};
+
+function escapeHtml(s){ if(!s) return ""; return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+fetchListings();
+</script>
+</body>
+</html>

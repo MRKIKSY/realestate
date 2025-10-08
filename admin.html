@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KINGSCAB Admin – Real Estate Connect</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f5f6fa;
+    }
+    h1 { color: #1e3799; }
+    .listing {
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .verified { color: green; font-weight: bold; }
+    .pending { color: orange; }
+    .img-gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: .5rem;
+    }
+    .img-gallery img {
+      width: 120px;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #1e3799;
+      color: #fff;
+      border: none;
+      padding: .5rem 1rem;
+      border-radius: 4px;
+      margin-right: .3rem;
+      cursor: pointer;
+    }
+    button:hover { background: #4a69bd; }
+    .delete-btn { background: #c0392b; }
+    .delete-btn:hover { background: #e74c3c; }
+    .proof-link {
+      color: #2980b9;
+      text-decoration: none;
+    }
+    .proof-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>KINGSCAB ADMIN DASHBOARD</h1>
+  <p>Use this page to verify, unverify, or delete property listings. Proof documents and property pictures are shown for review.</p>
+  <div id="listings"></div>
+
+  <script>
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get("key");
+  if (!key) {
+    document.body.innerHTML = "<h2>Access Denied: Missing admin key (?key=KINGSCAB_ADMIN_2025)</h2>";
+    throw new Error("Missing admin key");
+  }
+
+  async function loadListings() {
+    const res = await fetch(`/api/admin/listings?key=${key}`);
+    const data = await res.json();
+    const container = document.getElementById("listings");
+    container.innerHTML = "";
+
+    if (data.error) {
+      container.innerHTML = `<p style='color:red'>${data.error}</p>`;
+      return;
+    }
+
+    data.forEach(l => {
+      const div = document.createElement("div");
+      div.className = "listing";
+      div.innerHTML = `
+        <h3>${l.title}</h3>
+        <p><strong>Location:</strong> ${l.location || "N/A"}</p>
+        <p><strong>Rent:</strong> ₦${l.rent ? Number(l.rent).toLocaleString() : "N/A"}</p>
+        <p><strong>Description:</strong> ${l.description || ""}</p>
+        <p><strong>Owner:</strong> ${l.owner_name} (${l.owner_email}, ${l.owner_phone})</p>
+        <p><strong>Status:</strong> ${l.is_verified ? "<span class='verified'>Verified</span>" : "<span class='pending'>Pending</span>"}</p>
+        <p><strong>Proof of Ownership:</strong> ${
+          l.proof_filename 
+            ? `<a class='proof-link' href="/uploads/${l.proof_filename}?key=${key}" target="_blank">View Proof</a>` 
+            : "No proof uploaded"
+        }</p>
+        <div><strong>Property Pictures:</strong></div>
+        <div class="img-gallery">${
+          l.property_images 
+            ? l.property_images.split(",").map(img => 
+              `<a href="/uploads/${img}?key=${key}" target="_blank"><img src="/uploads/${img}?key=${key}" alt="Property image"></a>`
+            ).join("") 
+            : "<p>No images uploaded.</p>"
+        }</div>
+        <div style="margin-top:.5rem">
+          ${l.is_verified 
+            ? `<button onclick="toggleVerify(${l.id}, false)">Unverify</button>` 
+            : `<button onclick="toggleVerify(${l.id}, true)">Verify</button>`}
+          <button class="delete-btn" onclick="deleteListing(${l.id})">Delete</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  async function toggleVerify(id, state) {
+    const action = state ? "verify" : "unverify";
+    const res = await fetch(`/api/admin/${action}/${id}?key=${key}`, {method:"POST"});
+    const result = await res.json();
+    alert(result.message);
+    loadListings();
+  }
+
+  async function deleteListing(id) {
+    if (!confirm("Are you sure you want to delete this listing?")) return;
+    const res = await fetch(`/api/admin/delete/${id}?key=${key}`, {method:"POST"});
+    const result = await res.json();
+    alert(result.message);
+    loadListings();
+  }
+
+  loadListings();
+  </script>
+</body>
+</html>
